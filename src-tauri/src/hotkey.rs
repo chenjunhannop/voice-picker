@@ -22,20 +22,28 @@ pub fn handle_shortcut(app: &AppHandle) {
 
     // 1. 获取选中的文本
     let clip_start = Instant::now();
-    let text = match clipboard::get_selected_text(app) {
-        t if !t.is_empty() => t,
-        _ => {
-            log_error(app, "未选中文本");
-            return;
-        }
+    let selected_text = clipboard::get_selected_text(app);
+
+    eprintln!("[VoicePicker] 选中的文本：'{:?}'", selected_text);
+    eprintln!("[VoicePicker] 选中的文本长度：{}", selected_text.len());
+
+    // 如果没有选中文本，尝试使用剪贴板内容作为备用
+    let text = if !selected_text.is_empty() {
+        selected_text
+    } else {
+        eprintln!("[VoicePicker] 未选中文本，尝试使用剪贴板内容...");
+        let clipboard_text = clipboard::get_clipboard_text(app);
+        eprintln!("[VoicePicker] 剪贴板内容：'{:?}'", clipboard_text);
+        clipboard_text
     };
-    log_to_file(&format!("获取文本耗时：{:?}，文本：{}", clip_start.elapsed(), text));
-    eprintln!("[VoicePicker] 获取文本耗时：{:?}，文本：{}", clip_start.elapsed(), text);
 
     if text.trim().is_empty() {
         log_error(app, "选中的文本为空");
         return;
     }
+
+    log_to_file(&format!("获取文本耗时：{:?}，文本：{}", clip_start.elapsed(), text));
+    eprintln!("[VoicePicker] 获取文本耗时：{:?}，文本：{}", clip_start.elapsed(), text);
 
     // 2. 获取应用状态（包含设置）
     let state = app.state::<AppState>();
