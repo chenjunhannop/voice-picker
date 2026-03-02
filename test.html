@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VoicePicker 测试</title>
+</head>
+<body>
+    <h1>VoicePicker 测试页面</h1>
+
+    <div>
+        <button onclick="testGetSettings()">测试 get_settings</button>
+        <button onclick="testSaveSettings()">测试 save_settings</button>
+        <button onclick="testTts()">测试 TTS 合成</button>
+    </div>
+
+    <h2>结果:</h2>
+    <pre id="result" style="background: #f0f0f0; padding: 10px; max-height: 400px; overflow: auto;"></pre>
+
+    <script>
+        const { invoke } = window.__TAURI__.core;
+
+        function log(message, data) {
+            const resultDiv = document.getElementById('result');
+            resultDiv.textContent += message + '\n';
+            if (data) {
+                resultDiv.textContent += JSON.stringify(data, null, 2) + '\n';
+            }
+            resultDiv.textContent += '---\n';
+        }
+
+        async function testGetSettings() {
+            try {
+                log('调用 get_settings...');
+                const settings = await invoke('get_settings');
+                log('成功', settings);
+            } catch (e) {
+                log('失败', e.toString());
+            }
+        }
+
+        async function testSaveSettings() {
+            try {
+                log('调用 save_settings...');
+                await invoke('save_settings', {
+                    settings: {
+                        tts_speed: 1.5,
+                        tts_volume: 0.8,
+                        global_hotkey: 'Cmd+Option+X',
+                        auto_play: true,
+                        theme: 'system'
+                    }
+                });
+                log('保存成功');
+            } catch (e) {
+                log('保存失败', e.toString());
+            }
+        }
+
+        async function testTts() {
+            try {
+                log('调用 synthesize_tts...');
+                const result = await invoke('synthesize_tts', {
+                    request: {
+                        text: '你好，这是测试语音',
+                        speed: 1.0,
+                        volume: 1.0
+                    }
+                });
+                log('TTS 结果', result);
+
+                if (result.success) {
+                    log('播放音频...');
+                    await invoke('play_audio');
+                    log('播放完成');
+                }
+            } catch (e) {
+                log('TTS 失败', e.toString());
+            }
+        }
+    </script>
+</body>
+</html>

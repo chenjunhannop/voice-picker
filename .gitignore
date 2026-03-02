@@ -1,0 +1,49 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Rust
+src-tauri/target
+src-tauri/**/*.rs.bk
+*.pdb
+
+# Python
+python/.venv
+python/__pycache__
+python/*.pyc
+python/*.pyo
+
+# Models (需要单独下载)
+models/*
+!models/.gitkeep
+
+# Build outputs
+*.app
+*.dmg
+*.msi
+*.exe
+
+# Test files
+*.test.js
+*.spec.ts
