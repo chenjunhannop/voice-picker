@@ -47,3 +47,4 @@ models/*
 # Test files
 *.test.js
 *.spec.ts
+.gitnexus

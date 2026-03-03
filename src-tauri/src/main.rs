@@ -124,26 +124,53 @@ fn play_audio(_app: tauri::AppHandle, state: State<'_, AppState>) -> Result<(), 
         .clone()
         .ok_or("No audio data")?;
 
-    audio::player::play_once(&audio_data)?;
+    // 使用 AudioManager 播放（支持暂停/继续）
+    audio::manager::play(audio_data)?;
+
+    // 更新状态
+    *state.status.lock().unwrap() = TtsStatus::Playing;
+
     Ok(())
 }
 
 #[tauri::command]
-fn pause_audio() -> Result<(), String> {
-    // TODO: 实现暂停功能（需要异步播放器）
-    Ok(())
+fn pause_audio(state: State<'_, AppState>) -> Result<(), String> {
+    // 更新状态
+    *state.status.lock().unwrap() = TtsStatus::Paused;
+    // 使用 AudioManager 暂停
+    audio::manager::pause()
 }
 
 #[tauri::command]
-fn resume_audio() -> Result<(), String> {
-    // TODO: 实现恢复功能
-    Ok(())
+fn resume_audio(state: State<'_, AppState>) -> Result<(), String> {
+    // 更新状态
+    *state.status.lock().unwrap() = TtsStatus::Playing;
+    // 使用 AudioManager 继续
+    audio::manager::resume()
 }
 
 #[tauri::command]
-fn stop_audio() -> Result<(), String> {
-    // TODO: 实现停止功能
-    Ok(())
+fn stop_audio(state: State<'_, AppState>) -> Result<(), String> {
+    // 更新状态
+    *state.status.lock().unwrap() = TtsStatus::Idle;
+    // 使用 AudioManager 停止
+    audio::manager::stop()
+}
+
+#[tauri::command]
+fn get_playback_status() -> Result<String, String> {
+    let state = audio::manager::get_state();
+    Ok(format!("{:?}", state))
+}
+
+#[tauri::command]
+fn seek_audio(position: f32) -> Result<(), String> {
+    audio::manager::seek(position)
+}
+
+#[tauri::command]
+fn get_playback_progress() -> Result<crate::audio::manager::PlaybackProgress, String> {
+    audio::manager::get_progress().ok_or("No playback progress available".to_string())
 }
 
 #[tauri::command]
@@ -179,6 +206,9 @@ fn main() {
             pause_audio,
             resume_audio,
             stop_audio,
+            get_playback_status,
+            seek_audio,
+            get_playback_progress,
             get_settings,
             save_settings,
             reset_settings
