@@ -7,6 +7,12 @@ export interface PlaybackProgress {
   percent: number
 }
 
+export interface TtsResponse {
+  success: boolean
+  audio_data: number[] | null
+  error: string | null
+}
+
 export type PlaybackState = 'Idle' | 'Playing' | 'Paused' | 'Stopped'
 
 export function useAudioPlayer() {
@@ -54,13 +60,20 @@ export function useAudioPlayer() {
       isPaused.value = false
       state.value = 'Playing'
 
-      // 调用 TTS 合成并播放
-      await invoke('synthesize_and_play', { text, speed, volume })
+      // 1. 先调用 TTS 合成
+      const result = await invoke<TtsResponse>('synthesize_tts', {
+        request: { text, speed, volume }
+      })
 
-      // 开始轮询进度
-      startPolling()
-
-      return true
+      // 2. 合成成功后播放
+      if (result.success) {
+        await invoke('play_audio')
+        // 开始轮询进度
+        startPolling()
+        return true
+      } else {
+        throw new Error(result.error || 'TTS 合成失败')
+      }
     } catch (error) {
       console.error('播放失败:', error)
       isPlaying.value = false

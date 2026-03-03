@@ -29,6 +29,17 @@
       </button>
 
       <button
+        @click="handleResume"
+        :disabled="!isPaused"
+        class="control-btn"
+        title="继续"
+      >
+        <svg viewBox="0 0 24 24" width="24" height="24">
+          <path fill="currentColor" d="M8 5v14l11-7z"/>
+        </svg>
+      </button>
+
+      <button
         @click="handleStop"
         :disabled="!isPlaying && !isPaused"
         class="control-btn"
@@ -62,6 +73,9 @@ const isPlaying = ref(false)
 const isPaused = ref(false)
 const progressPercent = ref(0)
 
+// 进度轮询定时器
+let progressInterval: number | null = null
+
 const statusClass = computed(() => `status-${status.value}`)
 const statusText = computed(() => {
   const texts = {
@@ -76,12 +90,42 @@ const statusText = computed(() => {
 const showProgress = computed(() => status.value === 'playing' || status.value === 'paused')
 const progressText = computed(() => `${Math.round(progressPercent.value)}%`)
 
+// 开始轮询进度
+const startProgressPolling = () => {
+  stopProgressPolling()
+  progressInterval = window.setInterval(async () => {
+    try {
+      const progress = await invoke<{ percent: number }>('get_playback_progress')
+      progressPercent.value = progress.percent
+
+      // 播放完成时停止轮询
+      if (progress.percent >= 100) {
+        status.value = 'idle'
+        isPlaying.value = false
+        isPaused.value = false
+        stopProgressPolling()
+      }
+    } catch (error) {
+      console.error('获取进度失败:', error)
+    }
+  }, 500)
+}
+
+// 停止轮询进度
+const stopProgressPolling = () => {
+  if (progressInterval) {
+    clearInterval(progressInterval)
+    progressInterval = null
+  }
+}
+
 const handlePlay = async () => {
   try {
     await invoke('play_audio')
     status.value = 'playing'
     isPlaying.value = true
     isPaused.value = false
+    startProgressPolling()
   } catch (e) {
     console.error('播放失败:', e)
     status.value = 'error'
@@ -95,8 +139,21 @@ const handlePause = async () => {
     status.value = 'paused'
     isPlaying.value = false
     isPaused.value = true
+    stopProgressPolling()
   } catch (e) {
     console.error('暂停失败:', e)
+  }
+}
+
+const handleResume = async () => {
+  try {
+    await invoke('resume_audio')
+    status.value = 'playing'
+    isPlaying.value = true
+    isPaused.value = false
+    startProgressPolling()
+  } catch (e) {
+    console.error('继续失败:', e)
   }
 }
 
@@ -107,32 +164,49 @@ const handleStop = async () => {
     progressPercent.value = 0
     isPlaying.value = false
     isPaused.value = false
+    stopProgressPolling()
   } catch (e) {
     console.error('停止失败:', e)
   }
 }
 
 onMounted(() => {
-  // 监听状态更新
+  // 监听 TTS 状态更新
   listen('tts-status', (event) => {
     const payload = event.payload as string
+    console.log('TTS 状态更新:', payload)
+
     if (payload.includes('播放')) {
       status.value = 'playing'
       hasAudio.value = true
       isPlaying.value = true
       isPaused.value = false
+      startProgressPolling()
     } else if (payload.includes('错误')) {
       status.value = 'error'
       isPlaying.value = false
-    } else if (payload.includes('就绪')) {
+      stopProgressPolling()
+    } else if (payload.includes('就绪') || payload.includes('完成')) {
       status.value = 'idle'
       isPlaying.value = false
       isPaused.value = false
+      progressPercent.value = 100
+      stopProgressPolling()
     } else if (payload.includes('暂停')) {
       status.value = 'paused'
       isPlaying.value = false
       isPaused.value = true
+      stopProgressPolling()
     }
+  })
+
+  // 监听 TTS 完成事件
+  listen('tts-complete', () => {
+    status.value = 'idle'
+    isPlaying.value = false
+    isPaused.value = false
+    progressPercent.value = 100
+    stopProgressPolling()
   })
 })
 </script>
